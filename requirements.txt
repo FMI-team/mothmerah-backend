@@ -1,0 +1,24 @@
+# FastAPI and Server
+fastapi
+uvicorn[standard]
+
+# Database (PostgreSQL Driver, ORM, Migrations)
+psycopg[binary,asyncpg]
+SQLAlchemy
+alembic
+
+# Data Validation and Settings
+pydantic[email]
+pydantic-settings
+
+# Security (Password Hashing, JWT Tokens)
+# passlib[bcrypt]
+passlib==1.7.4
+bcrypt==4.1.3
+python-jose[cryptography]
+
+# Background Tasks
+celery
+redis
+
+python-multipart
