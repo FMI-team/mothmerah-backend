@@ -36,7 +36,7 @@ class Quote(Base):
     # --- SQLAlchemy Relationships ---
     # علاقات مع مودلات من مجموعات أخرى أو مودلات لم تُستورد مباشرةً:
     rfq: Mapped["Rfq"] = relationship("Rfq", foreign_keys=[rfq_id], back_populates="quotes", lazy="selectin") # علاقة بطلب عرض الأسعار الأب
-    seller: Mapped["User"] = relationship("User", foreign_keys=[seller_user_id], lazy="selectin") # علاقة بالبائع مقدم العرض
+    seller: Mapped["User"] = relationship("User", foreign_keys=[seller_user_id], lazy="selectin", overlaps="seller_user") # علاقة بالبائع مقدم العرض
     quote_status: Mapped["QuoteStatus"] = relationship("QuoteStatus", foreign_keys=[quote_status_id], lazy="selectin") # علاقة بحالة عرض السعر
 
     # علاقة ببنود عرض السعر (Quote Items)

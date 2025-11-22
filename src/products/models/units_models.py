@@ -21,6 +21,7 @@ class UnitOfMeasure(Base):
     unit_abbreviation_key: Mapped[str] = mapped_column(String(10), unique=True, nullable=False)
     is_base_unit_for_type: Mapped[bool] = mapped_column(Boolean, nullable=True)
     conversion_factor_to_base: Mapped[float] = mapped_column(Numeric, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -38,7 +39,7 @@ class UnitOfMeasureTranslation(Base):
 class Image(Base):
     """(2.ج.5) جدول عام لإدارة جميع الصور في النظام بطريقة مرنة."""
     __tablename__ = 'images'
-    image_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    image_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     # استخدام علاقة متعددة الأشكال (Polymorphic) لربط الصورة بأي كيان في النظام
     entity_id: Mapped[str] = mapped_column(String, nullable=False, comment="معرف الكيان الذي ترتبط به الصورة (UUID أو Integer)")
     entity_type: Mapped[str] = mapped_column(String(50), nullable=False, comment="نوع الكيان من جدول entity_types_for_reviews_or_images")
@@ -72,6 +73,8 @@ class ProductPackagingOption(Base):
     updated_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now())
 
     product: Mapped["Product"] = relationship(back_populates="packaging_options")
+    unit_of_measure: Mapped["UnitOfMeasure"] = relationship("UnitOfMeasure", foreign_keys=[unit_of_measure_id_for_quantity], lazy="selectin")
+    translations: Mapped[list["ProductPackagingOptionTranslation"]] = relationship("ProductPackagingOptionTranslation", back_populates="packaging_option", cascade="all, delete-orphan")
     # يجب أن يكون اسم العلاقة "price_rule_assignments"
     price_rule_assignments: Mapped[list["ProductPackagingPriceTierRuleAssignment"]] = relationship(back_populates="packaging_option")
 
@@ -85,3 +88,5 @@ class ProductPackagingOptionTranslation(Base):
     translated_custom_description: Mapped[str] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    packaging_option: Mapped["ProductPackagingOption"] = relationship("ProductPackagingOption", back_populates="translations")

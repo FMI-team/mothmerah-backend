@@ -125,7 +125,8 @@ class User(Base):
     targeted_security_event_logs: Mapped[List["SecurityEventLog"]] = relationship(
         "SecurityEventLog",
         foreign_keys="[SecurityEventLog.target_user_id]",
-        lazy="selectin"
+        lazy="selectin",
+        overlaps="target_user"
     )
     data_change_audit_logs: Mapped[List["DataChangeAuditLog"]] = relationship("DataChangeAuditLog", back_populates="changed_by_user", lazy="selectin")
 
@@ -166,7 +167,7 @@ class User(Base):
     rfqs_as_buyer: Mapped[List["Rfq"]] = relationship("Rfq", back_populates="buyer", foreign_keys=lambda: [Rfq.buyer_user_id])
     # quotes_as_seller: Mapped[List["Quote"]] = relationship("Quote", back_populates="seller_user", foreign_keys="[Quote.seller_user_id]")
     # quotes_as_seller: Mapped[List["Quote"]] = relationship("Quote", back_populates="seller_user", foreign_keys="[Quote.seller_user_id]")
-    quotes_as_seller: Mapped[List["Quote"]] = relationship("Quote", back_populates="seller_user", foreign_keys=lambda: [Quote.seller_user_id])
+    quotes_as_seller: Mapped[List["Quote"]] = relationship("Quote", back_populates="seller_user", foreign_keys=lambda: [Quote.seller_user_id], overlaps="seller")
     shipments_as_shipper: Mapped[List["Shipment"]] = relationship("Shipment", back_populates="shipped_by_user", foreign_keys=lambda: [Shipment.shipped_by_user_id])
     
     # علاقات مع مودلات من Auction
@@ -303,8 +304,8 @@ class AccountStatus(Base):
     translations: Mapped[List["AccountStatusTranslation"]] = relationship(
         back_populates="status", cascade="all, delete-orphan" # ترجمات حالة الحساب
     )
-    account_status_history_old_status: Mapped[List["AccountStatusHistory"]] = relationship("AccountStatusHistory", foreign_keys=lambda: [AccountStatusHistory.old_account_status_id], lazy="selectin")
-    account_status_history_new_status: Mapped[List["AccountStatusHistory"]] = relationship("AccountStatusHistory", foreign_keys=lambda: [AccountStatusHistory.new_account_status_id], lazy="selectin")
+    account_status_history_old_status: Mapped[List["AccountStatusHistory"]] = relationship("AccountStatusHistory", foreign_keys=lambda: [AccountStatusHistory.old_account_status_id], lazy="selectin", overlaps="old_account_status")
+    account_status_history_new_status: Mapped[List["AccountStatusHistory"]] = relationship("AccountStatusHistory", foreign_keys=lambda: [AccountStatusHistory.new_account_status_id], lazy="selectin", overlaps="new_account_status")
 
 class AccountStatusTranslation(Base):
     """(1.أ.5) جدول ترجمات حالات الحساب التشغيلية."""

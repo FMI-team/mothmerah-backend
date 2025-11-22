@@ -46,6 +46,19 @@ def get_all_products_by_seller(db: Session, seller: User) -> List[Product]: # <-
     """خدمة لجلب كل منتجات البائع الحالي."""
     return product_crud.get_all_products_by_seller(db, seller_id=seller.user_id)
 
+def get_public_active_products(db: Session, skip: int = 0, limit: int = 100) -> List[Product]:
+    """
+    خدمة لجلب جميع المنتجات النشطة المتاحة للعامة.
+    يجلب فقط المنتجات التي حالتها 'ACTIVE'.
+    """
+    # Get ACTIVE status
+    active_status = db.query(ProductStatus).filter(ProductStatus.status_name_key == "ACTIVE").first()
+    if not active_status:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Active status not configured.")
+    
+    # Get all products with ACTIVE status
+    return product_crud.get_all_active_products(db, status_id=active_status.product_status_id, skip=skip, limit=limit)
+
 def get_product_by_id_for_user(db: Session, product_id: UUID, user: Optional[User]) -> Product: # <-- تم التعديل هنا: Product بدلاً من base.Product
     """
     خدمة لجلب منتج واحد بناءً على صلاحيات المستخدم.
@@ -79,15 +92,16 @@ def soft_delete_product_by_id(db: Session, product_id: UUID, user: User): # <-- 
     """خدمة للحذف الناعم لمنتج مع التحقق من الملكية."""
     db_product = get_product_by_id_for_user(db, product_id, user) # التحقق من الملكية
 
-    archived_status = db.query(ProductStatus).filter(ProductStatus.status_name_key == "ARCHIVED").first() # <-- تم التعديل هنا: ProductStatus بدلاً من base.ProductStatus
-    if not archived_status:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Archived status not configured.")
+    # Use DISCONTINUED status for soft delete (archived state)
+    discontinued_status = db.query(ProductStatus).filter(ProductStatus.status_name_key == "DISCONTINUED").first() # <-- تم التعديل هنا: ProductStatus بدلاً من base.ProductStatus
+    if not discontinued_status:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Discontinued status not configured. Please ensure product statuses are seeded in the database.")
 
     # (منطق عمل مستقبلي: لا يمكن أرشفة منتج نشط في طلبات قائمة)
     # if crud.is_product_in_active_orders(db, product_id):
     #     raise HTTPException(status_code=409, detail="Cannot archive product, it exists in active orders.")
 
-    return product_crud.soft_delete_product(db, db_product=db_product, archived_status_id=archived_status.product_status_id)
+    return product_crud.soft_delete_product(db, db_product=db_product, archived_status_id=discontinued_status.product_status_id)
 
 def remove_product_translation(db: Session, product_id: UUID, language_code: str, user: User): # <-- تم التعديل هنا: User بدلاً من base.User
     """خدمة لحذف ترجمة معينة لمنتج مع التحقق من الملكية."""

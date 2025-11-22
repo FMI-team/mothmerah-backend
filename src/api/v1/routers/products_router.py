@@ -1,17 +1,20 @@
 # backend/src/api/v1/routers/products_router.py
 
-from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi import APIRouter, Depends, status, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from uuid import UUID
+from uuid import UUID, uuid4
+import json
+import os
+from pathlib import Path
 
 from src.db.session import get_db
 from src.api.v1 import dependencies
 from src.users.models.core_models import User
-from src.products.services import product_service, variety_service, packaging_service, image_service, future_offerings_service
+from src.products.services import product_service, variety_service, packaging_service, image_service, future_offerings_service, category_service
 from src.products import schemas
 # تأكد من استيراد الـ Schemas الفردية مباشرة إذا كان هذا النمط متبعًا في ملفك، مثلاً:
-from src.products.schemas import packaging_schemas, image_schemas, variety_schemas, future_offerings_schemas
+from src.products.schemas import packaging_schemas, image_schemas, variety_schemas, future_offerings_schemas, category_schemas
 
 router = APIRouter()
 
@@ -237,17 +240,147 @@ def delete_image_endpoint(
 
 
 # ================================================================
+# --- نقاط الوصول العامة لفئات المنتجات (Public - Categories) ---
+# ================================================================
+
+@router.get(
+    "/categories",
+    response_model=List[category_schemas.ProductCategoryRead],
+    summary="[Public] Get all product categories",
+    description="جلب قائمة بكل فئات المنتجات المتاحة في النظام. متاح للجميع بدون مصادقة.",
+    tags=["Products & Catalog - User Facing"]
+)
+def get_all_categories(
+    db: Session = Depends(get_db),
+    include_inactive: bool = False
+):
+    """
+    جلب قائمة بكل فئات المنتجات في النظام.
+    بشكل افتراضي، يتم جلب الفئات النشطة فقط. يمكن للمسؤولين طلب الفئات غير النشطة أيضاً.
+    """
+    categories = category_service.get_all_categories(db)
+    if not include_inactive:
+        # تصفية الفئات غير النشطة للعامة
+        categories = [cat for cat in categories if cat.is_active]
+    return categories
+
+@router.get(
+    "/categories/{category_id}",
+    response_model=category_schemas.ProductCategoryRead,
+    summary="[Public] Get a single product category",
+    description="جلب تفاصيل فئة منتج واحدة بالـ ID الخاص بها. متاح للجميع بدون مصادقة.",
+    tags=["Products & Catalog - User Facing"]
+)
+def get_category_by_id(
+    category_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    جلب التفاصيل الكاملة لفئة منتج واحدة عن طريق الـ ID.
+    """
+    return category_service.get_category_by_id(db, category_id=category_id)
+
+
+# ================================================================
 # --- نقاط الوصول الخاصة بالبائع (محمية بصلاحيات) ---
 # ================================================================
 
 @router.post("/", response_model=schemas.ProductRead, status_code=status.HTTP_201_CREATED, summary="[Seller] Create a new product")
-def create_product(
-    product_in: schemas.ProductCreate,
+async def create_product(
+    category_id: int = Form(...),
+    base_price_per_unit: Optional[float] = Form(None),
+    unit_of_measure_id: Optional[int] = Form(None),
+    country_of_origin_code: Optional[str] = Form(None),
+    is_organic: bool = Form(False),
+    is_local_saudi_product: bool = Form(False),
+    main_image_url: Optional[str] = Form(None),
+    sku: Optional[str] = Form(None),
+    tags: str = Form("[]"),  # JSON string
+    translations: str = Form(...),  # JSON string
+    packaging_options: str = Form(...),  # JSON string
+    image: Optional[UploadFile] = File(None),  # Optional image file
     db: Session = Depends(get_db),
     current_user: User = Depends(dependencies.has_permission("PRODUCT_CREATE_OWN"))
 ):
-    """إنشاء منتج جديد. الحالة الأولية ستكون 'مسودة'."""
-    return product_service.create_new_product(db=db, product_in=product_in, seller=current_user)
+    """إنشاء منتج جديد مع إمكانية رفع صورة. الحالة الأولية ستكون 'مسودة'."""
+    try:
+        # Parse JSON strings
+        translations_list = json.loads(translations) if isinstance(translations, str) else translations
+        packaging_options_list = json.loads(packaging_options) if isinstance(packaging_options, str) else packaging_options
+        tags_list = json.loads(tags) if isinstance(tags, str) and tags else []
+        
+        # Extract base_price_per_unit and unit_of_measure_id from first packaging option if not provided
+        if base_price_per_unit is None or unit_of_measure_id is None:
+            if packaging_options_list and len(packaging_options_list) > 0:
+                first_packaging = packaging_options_list[0]
+                if base_price_per_unit is None and "base_price" in first_packaging:
+                    # Use base_price from first packaging option divided by quantity as fallback
+                    base_price_per_unit = float(first_packaging.get("base_price", 0)) / float(first_packaging.get("quantity_in_packaging", 1))
+                if unit_of_measure_id is None and "unit_of_measure_id_for_quantity" in first_packaging:
+                    unit_of_measure_id = int(first_packaging.get("unit_of_measure_id_for_quantity"))
+        
+        # Validate required fields
+        if base_price_per_unit is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="base_price_per_unit is required")
+        if unit_of_measure_id is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="unit_of_measure_id is required")
+        
+        # Create ProductCreate schema
+        product_data = {
+            "category_id": category_id,
+            "base_price_per_unit": base_price_per_unit,
+            "unit_of_measure_id": unit_of_measure_id,
+            "country_of_origin_code": country_of_origin_code,
+            "is_organic": is_organic,
+            "is_local_saudi_product": is_local_saudi_product,
+            "main_image_url": main_image_url,
+            "sku": sku,
+            "tags": tags_list,
+            "translations": translations_list,
+            "packaging_options": packaging_options_list
+        }
+        
+        product_in = schemas.ProductCreate(**product_data)
+        
+        # Create the product first
+        created_product = product_service.create_new_product(db=db, product_in=product_in, seller=current_user)
+        
+        # Handle image upload if provided
+        if image and image.filename:
+            # Save the image file
+            upload_dir = Path("uploads/images")
+            upload_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Generate unique filename
+            file_extension = image.filename.split(".")[-1] if "." in image.filename else "jpg"
+            unique_filename = f"{created_product.product_id}_{uuid4()}.{file_extension}"
+            file_path = upload_dir / unique_filename
+            
+            # Save file
+            with open(file_path, "wb") as buffer:
+                content = await image.read()
+                buffer.write(content)
+            
+            # Create image URL (relative or absolute)
+            image_url = f"/uploads/images/{unique_filename}"
+            
+            # Create image record
+            from src.products.schemas import image_schemas
+            image_create = image_schemas.ImageCreate(
+                entity_id=str(created_product.product_id),
+                entity_type="PRODUCT",
+                image_url=image_url,
+                is_primary_image=True,
+                sort_order=0
+            )
+            image_service.create_new_image(db=db, image_in=image_create, current_user=current_user)
+        
+        return created_product
+        
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid JSON in form data: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error creating product: {str(e)}")
 
 @router.get("/me", response_model=List[schemas.ProductRead], summary="[Seller] Get my products")
 def get_my_products(

@@ -17,15 +17,51 @@ def create_image(db: Session, image_in: schemas.ImageCreate, uploaded_by_user_id
     """
     ينشئ سجل صورة جديد في قاعدة البيانات.
     """
-    db_image = models.Image(
-        entity_id=image_in.entity_id,
-        entity_type=image_in.entity_type,
-        image_url=image_in.image_url,
-        alt_text_key=image_in.alt_text_key,
-        is_primary_image=image_in.is_primary_image,
-        sort_order=image_in.sort_order,
-        uploaded_by_user_id=uploaded_by_user_id
-    )
+    # For SQLite compatibility: SQLite doesn't auto-increment BIGINT primary keys
+    # So we need to manually generate the ID for SQLite
+    from sqlalchemy import func, inspect
+    
+    # Check if we're using SQLite
+    try:
+        # Get the engine from the session
+        engine = db.get_bind()
+        is_sqlite = engine.dialect.name == 'sqlite'
+    except (AttributeError, Exception):
+        # Fallback: try alternative method
+        try:
+            is_sqlite = 'sqlite' in str(db.bind.url).lower() if hasattr(db, 'bind') else True
+        except:
+            # Default to SQLite for safety (since we're using test.db)
+            is_sqlite = True
+    
+    # Always manually generate ID for SQLite, let database handle it for others
+    if is_sqlite:
+        # Get the maximum existing ID
+        max_id = db.query(func.max(models.Image.image_id)).scalar()
+        next_id = 1 if max_id is None else max_id + 1
+        
+        db_image = models.Image(
+            image_id=next_id,
+            entity_id=str(image_in.entity_id),  # Ensure it's a string
+            entity_type=image_in.entity_type,
+            image_url=image_in.image_url,
+            alt_text_key=image_in.alt_text_key,
+            is_primary_image=image_in.is_primary_image,
+            sort_order=image_in.sort_order,
+            uploaded_by_user_id=uploaded_by_user_id
+        )
+    else:
+        # For PostgreSQL and other databases, let autoincrement handle it
+        db_image = models.Image(
+            entity_id=str(image_in.entity_id),  # Ensure it's a string
+            entity_type=image_in.entity_type,
+            image_url=image_in.image_url,
+            alt_text_key=image_in.alt_text_key,
+            is_primary_image=image_in.is_primary_image,
+            sort_order=image_in.sort_order,
+            uploaded_by_user_id=uploaded_by_user_id
+        )
+    
     db.add(db_image)
     db.commit()
     db.refresh(db_image)

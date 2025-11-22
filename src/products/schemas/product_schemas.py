@@ -49,6 +49,8 @@ class ProductTranslationRead(ProductTranslationBase):
 # ==========================================================
 class ProductBase(BaseModel):
     category_id: int
+    base_price_per_unit: float = Field(..., gt=0, description="السعر الأساسي لكل وحدة قبل أي تسعير ديناميكي")
+    unit_of_measure_id: int = Field(..., description="معرف وحدة القياس")
     country_of_origin_code: Optional[str] = Field(None, max_length=2)
     is_organic: bool = False
     is_local_saudi_product: bool = False

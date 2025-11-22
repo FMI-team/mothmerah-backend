@@ -11,7 +11,7 @@ class Product(Base):
     """(2.أ.3) جدول المنتجات الأساسية."""
     __tablename__ = 'products'
 
-    product_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    product_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     seller_user_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('users.user_id'), nullable=False)
     category_id: Mapped[int] = mapped_column(Integer, ForeignKey('product_categories.category_id'), nullable=False)
     base_price_per_unit: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False, comment="السعر الأساسي قبل أي تسعير ديناميكي")

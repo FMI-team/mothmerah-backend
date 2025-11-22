@@ -165,7 +165,7 @@ async def get_current_user_or_none(
     try:
         # هنا نستفيد من التحسينات في دالة security.decode_access_token
         payload = security.decode_access_token(token)
-        user = core_crud.get_user_by_id(db, user_id=UUID(payload.get("sub"))) # user_id هو payload.sub
+        user = core_crud.get_user_by_id(db, user_id=payload.user_id) # user_id هو payload.user_id (TokenPayload object)
         if user is None: # إذا لم يتم العثور على المستخدم
             return None
         return user

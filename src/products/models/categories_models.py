@@ -3,7 +3,8 @@ from sqlalchemy import (
     Integer, String, Text, Boolean, BigInteger,
     func, TIMESTAMP, text, ForeignKey
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from typing import List
 
 from src.db.base_class import Base
 
@@ -19,6 +20,13 @@ class ProductCategory(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    # Relationships
+    translations: Mapped[List["ProductCategoryTranslation"]] = relationship(
+        "ProductCategoryTranslation",
+        back_populates="category",
+        cascade="all, delete-orphan"
+    )
 
 class ProductCategoryTranslation(Base):
     """(2.أ.2) جدول ترجمات فئات المنتجات."""
@@ -30,3 +38,6 @@ class ProductCategoryTranslation(Base):
     translated_category_description: Mapped[str] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    # Relationships
+    category: Mapped["ProductCategory"] = relationship("ProductCategory", back_populates="translations")
