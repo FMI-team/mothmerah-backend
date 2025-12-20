@@ -17,6 +17,7 @@ from src.exceptions import (
     NotFoundException, ConflictException, BadRequestException, ForbiddenException
 )
 from src.users.models.core_models import User # لاستخدام User في التحقق من الصلاحيات
+from sqlalchemy.dialects.postgresql import UUID
 
 # ==========================================================
 # --- خدمات الصور (Image) ---

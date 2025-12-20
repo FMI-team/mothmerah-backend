@@ -95,6 +95,7 @@ from src.api.v1.routers import (
 )
 
 from src.users.models.core_models import User 
+from sqlalchemy.dialects.postgresql import UUID
 
 
 # --- الراوتر الرئيسي المجمع لإدارة المنتجات ---

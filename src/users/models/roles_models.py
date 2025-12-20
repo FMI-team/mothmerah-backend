@@ -3,12 +3,12 @@ from datetime import datetime
 from sqlalchemy import (
     Integer, String, Text, Boolean, BigInteger,
     func, TIMESTAMP, text, ForeignKey )
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import List,Optional
 from src.db.base_class import Base
 from sqlalchemy.ext.associationproxy import association_proxy, AssociationProxy
 from .core_models import User
-from sqlalchemy.dialects.postgresql import UUID
 from uuid import uuid4
 
 class Role(Base):

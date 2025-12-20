@@ -2,11 +2,11 @@ from datetime import datetime
 from sqlalchemy import (
     Integer, String, Text, Boolean, BigInteger, Numeric,
     func, TIMESTAMP, text, ForeignKey )
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.db.base_class import Base
 
-from sqlalchemy.dialects.postgresql import UUID
 from uuid import uuid4
 
 # =================================================================
@@ -57,7 +57,7 @@ class Image(Base):
 class ProductPackagingOption(Base):
     """(2.ج.3) جدول خيارات التعبئة والبيع للمنتجات (صندوق كرتون 5 كيلو...)."""
     __tablename__ = 'product_packaging_options'
-    packaging_option_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    packaging_option_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     product_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('products.product_id'), nullable=False)
     packaging_option_name_key: Mapped[str] = mapped_column(String(100), nullable=True)
     custom_packaging_description: Mapped[str] = mapped_column(Text, nullable=True)

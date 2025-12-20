@@ -2,11 +2,11 @@ from datetime import datetime
 from sqlalchemy import (
     Integer, String, Text, Boolean, BigInteger, Date,
     func, TIMESTAMP, text, ForeignKey )
+from sqlalchemy.dialects.postgresql import UUID
 from typing import List,Optional
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from src.db.base_class import Base
 from .core_models import User
-from sqlalchemy.dialects.postgresql import UUID
 from uuid import uuid4
 
 class LicenseType(Base):

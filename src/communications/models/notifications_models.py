@@ -3,11 +3,11 @@ from sqlalchemy import (
     Integer, String, Text, Boolean, BigInteger,
     func, TIMESTAMP, text, ForeignKey, UniqueConstraint
 )
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.db.base_class import Base
 
-from sqlalchemy.dialects.postgresql import UUID
 from uuid import uuid4
 
 

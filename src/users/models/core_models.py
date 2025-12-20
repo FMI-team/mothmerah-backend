@@ -1,10 +1,10 @@
 # backend/src/users/models/core_models.py
 from datetime import datetime
 from sqlalchemy import (Integer, String, Text, Boolean, BigInteger, func, TIMESTAMP, text, ForeignKey, CheckConstraint, JSON)
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from src.db.base_class import Base
 from typing import List, Optional, TYPE_CHECKING # تأكد من استيراد Optional
-from sqlalchemy.dialects.postgresql import UUID
 from uuid import uuid4
 
 # يمنع الأخطاء الناتجة عن الاستيراد الدائري (ممارسة جيدة)
@@ -234,7 +234,7 @@ class User(Base):
 class AccountStatusHistory(Base):
     """(1.أ.6) جدول سجل تغييرات حالة الحساب لغرض التدقيق والمتابعة."""
     __tablename__ = 'account_status_history'
-    account_status_history_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    account_status_history_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     user_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('users.user_id'), nullable=False)
     old_account_status_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey('account_statuses.account_status_id'), nullable=True)
     new_account_status_id: Mapped[int] = mapped_column(Integer, ForeignKey('account_statuses.account_status_id'), nullable=False)

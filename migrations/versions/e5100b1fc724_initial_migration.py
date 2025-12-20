@@ -1,8 +1,8 @@
 """Initial migration
 
-Revision ID: f6a2837f2c73
+Revision ID: e5100b1fc724
 Revises: 
-Create Date: 2025-10-22 22:37:50.896759
+Create Date: 2025-12-20 10:32:27.044243
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'f6a2837f2c73'
+revision: str = 'e5100b1fc724'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -458,6 +458,7 @@ def upgrade() -> None:
     sa.Column('unit_abbreviation_key', sa.String(length=10), nullable=False),
     sa.Column('is_base_unit_for_type', sa.Boolean(), nullable=True),
     sa.Column('conversion_factor_to_base', sa.Numeric(), nullable=True),
+    sa.Column('is_active', sa.Boolean(), server_default=sa.text('(true)'), nullable=False),
     sa.Column('created_at', sa.TIMESTAMP(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.TIMESTAMP(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.PrimaryKeyConstraint('unit_id'),
@@ -1037,9 +1038,7 @@ def upgrade() -> None:
     sa.Column('updated_at', sa.TIMESTAMP(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_by_user_id', sa.UUID(), nullable=True),
     sa.Column('additional_data', sa.JSON(), nullable=True),
-    # sa.CheckConstraint("email IS NULL OR email ~ '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$'", name='chk_valid_email'),
-    # sa.CheckConstraint("phone_number ~ '^\\+9665[0-9]{8}$'", name='chk_sa_phone_number'),
-    sa.ForeignKeyConstraint(['account_status_id'], ['account_statuses.account_status_id'], ),
+            sa.ForeignKeyConstraint(['account_status_id'], ['account_statuses.account_status_id'], ),
     sa.ForeignKeyConstraint(['default_user_role_id'], ['roles.role_id'], ),
     sa.ForeignKeyConstraint(['preferred_language_code'], ['languages.language_code'], ),
     sa.ForeignKeyConstraint(['updated_by_user_id'], ['users.user_id'], ),
@@ -1071,7 +1070,7 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('withdrawal_request_status_id', 'language_code')
     )
     op.create_table('account_status_history',
-    sa.Column('account_status_history_id', sa.BigInteger(), nullable=False),
+    sa.Column('account_status_history_id', sa.BigInteger(), autoincrement=True, nullable=False),
     sa.Column('user_id', sa.UUID(), nullable=False),
     sa.Column('old_account_status_id', sa.Integer(), nullable=True),
     sa.Column('new_account_status_id', sa.Integer(), nullable=False),
@@ -1160,7 +1159,7 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('governorate_id', 'language_code')
     )
     op.create_table('images',
-    sa.Column('image_id', sa.BigInteger(), nullable=False),
+    sa.Column('image_id', sa.BigInteger(), autoincrement=True, nullable=False),
     sa.Column('entity_id', sa.String(), nullable=False, comment='معرف الكيان الذي ترتبط به الصورة (UUID أو Integer)'),
     sa.Column('entity_type', sa.String(length=50), nullable=False, comment='نوع الكيان من جدول entity_types_for_reviews_or_images'),
     sa.Column('image_url', sa.String(length=512), nullable=False),
@@ -1285,7 +1284,7 @@ def upgrade() -> None:
     sa.UniqueConstraint('rule_name_key')
     )
     op.create_table('products',
-    sa.Column('product_id', sa.UUID(), server_default=sa.text('(gen_random_uuid())'), nullable=False),
+    sa.Column('product_id', sa.UUID(), nullable=False),
     sa.Column('seller_user_id', sa.UUID(), nullable=False),
     sa.Column('category_id', sa.Integer(), nullable=False),
     sa.Column('base_price_per_unit', sa.Numeric(precision=10, scale=2), nullable=False, comment='السعر الأساسي قبل أي تسعير ديناميكي'),
@@ -1553,7 +1552,7 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('rule_id', 'language_code')
     )
     op.create_table('product_packaging_options',
-    sa.Column('packaging_option_id', sa.BigInteger(), nullable=False),
+    sa.Column('packaging_option_id', sa.Integer(), nullable=False, autoincrement=True),
     sa.Column('product_id', sa.UUID(), nullable=False),
     sa.Column('packaging_option_name_key', sa.String(length=100), nullable=True),
     sa.Column('custom_packaging_description', sa.Text(), nullable=True),
@@ -1573,7 +1572,7 @@ def upgrade() -> None:
     sa.UniqueConstraint('sku')
     )
     op.create_table('product_translations',
-    sa.Column('product_translation_id', sa.BigInteger(), nullable=False),
+    # sa.Column('product_translation_id', sa.BigInteger(), nullable=False),
     sa.Column('product_id', sa.UUID(), nullable=False),
     sa.Column('language_code', sa.String(length=10), nullable=False),
     sa.Column('translated_product_name', sa.String(length=255), nullable=False),
@@ -1583,7 +1582,7 @@ def upgrade() -> None:
     sa.Column('updated_at', sa.TIMESTAMP(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.ForeignKeyConstraint(['language_code'], ['languages.language_code'], ),
     sa.ForeignKeyConstraint(['product_id'], ['products.product_id'], ),
-    sa.PrimaryKeyConstraint('product_translation_id')
+    sa.PrimaryKeyConstraint('product_id', 'language_code')
     )
     op.create_table('product_varieties',
     sa.Column('variety_id', sa.BigInteger(), nullable=False),
@@ -1967,7 +1966,7 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('rfq_item_id')
     )
     op.create_table('orders',
-    sa.Column('order_id', sa.UUID(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('order_id', sa.UUID(), nullable=False),
     sa.Column('buyer_user_id', sa.UUID(), nullable=False),
     sa.Column('seller_user_id', sa.UUID(), nullable=True),
     sa.Column('order_reference_number', sa.String(length=50), nullable=False),

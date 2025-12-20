@@ -36,6 +36,7 @@ from src.users.services.core_service import (get_address_by_id, # للتحقق �
 
 # TODO: استيراد خدمة المخزون
 from src.products.services.inventory_service import adjust_stock_level # <-- أضف هذا الاستيراد
+from sqlalchemy.dialects.postgresql import UUID
 
 # TODO: هـام (REQ-FUN-077): حفظ محتويات سلة التسوق للمستخدم المسجل ليتمكن من العودة إليها لاحقًا.
 # هذا يتطلب إضافة جدول/مودل جديد لسلة التسوق الدائمة (مثلاً 'shopping_carts' و 'shopping_cart_items').

@@ -29,6 +29,7 @@ from src.market.services.orders_service import (
     )
 from src.users.services.core_service import get_user_profile # للتحقق من وجود المستخدم (شاحن)
 from src.users.services.address_service import get_address_by_id # للتحقق من وجود عنوان الشحن
+from sqlalchemy.dialects.postgresql import UUID
 # TODO: وحدة الإشعارات - (Module 11) لإرسال الإشعارات.
 
 

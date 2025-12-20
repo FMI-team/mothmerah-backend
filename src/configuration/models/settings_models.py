@@ -2,12 +2,12 @@
 
 from datetime import datetime
 from sqlalchemy import (JSON, Integer, String, Text, Boolean, BigInteger, func, TIMESTAMP, text, ForeignKey)
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import List, Optional, TYPE_CHECKING # تأكد من استيراد Optional و TYPE_CHECKING
 
 from src.db.base_class import Base
 
-from sqlalchemy.dialects.postgresql import UUID
 from uuid import uuid4
 
 # يمنع الأخطاء الناتجة عن الاستيراد الدائري لأغراض Type Checking

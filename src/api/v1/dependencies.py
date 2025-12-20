@@ -12,19 +12,15 @@ from sqlalchemy.orm import Session # لإدارة جلسات قاعدة البي
 from uuid import UUID # لمعرفات المستخدمين (UUIDs)
 from typing import Callable, Optional, Union, List # لأنواع البيانات المعقدة
 
-from jose import jwt, JWTError
+from jose import JWTError
 from pydantic import ValidationError
 
 from src.core import security # لوحدة الأمان الخاصة بنا (فك تشفير JWTs، خوارزميات التشفير)
-from src.core.config import settings # لإعدادات التطبيق (مثل المفتاح السري لـ JWT)
 from src.db.session import get_db # للحصول على جلسة قاعدة البيانات للوصول إلى DB
 from src.users.crud import core_crud # للوصول إلى دوال CRUD للمستخدمين (مثل get_user_by_id)
 
 # استيراد مودل User مباشرة
 from src.users.models.core_models import User # <-- تم التعديل هنا: استيراد User مباشرة
-# ... (بقية الاستيرادات مثل TokenData) ...
-# from src.users.schemas.security_schemas import TokenData # تأكد من أن هذا موجود لديك أو قم بإنشائه
-from src.users.schemas.security_schemas import TokenPayload # <-- تأكد من هذا الاستيراد: TokenPayload وليس TokenData القديم
 
 # ----------------------------------------------------------------------------------------------------
 # إعداد OAuth2PasswordBearer
@@ -53,20 +49,15 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        # 1. فك تشفير التوكن (JWT) والتحقق من توقيعه
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        # 1. فك تشفير التوكن (JWT) والتحقق من توقيعه باستخدام decode_access_token
+        # هذا يعيد TokenPayload مع user_id كـ UUID بالفعل
+        token_data = security.decode_access_token(token)
         
-        # 2. استخلاص معرف المستخدم (sub) من حمولة التوكن
-        user_id_from_token: Optional[str] = payload.get("sub")
-
-        if user_id_from_token is None:
-            raise credentials_exception
-        
-    except (JWTError, ValidationError): # نلتقط أي أخطاء متعلقة بـ JWT أو Pydantic ValidationError
+    except (JWTError, ValidationError, HTTPException): # نلتقط أي أخطاء متعلقة بـ JWT أو Pydantic ValidationError
         raise credentials_exception # يتم رمي استثناء بيانات الاعتماد غير الصالحة
 
     # 4. جلب كائن المستخدم من قاعدة البيانات باستخدام معرف المستخدم من التوكن
-    user = core_crud.get_user_by_id(db, user_id=UUID(user_id_from_token)) # تحويل sub إلى UUID
+    user = core_crud.get_user_by_id(db, user_id=token_data.user_id) # token_data.user_id هو UUID بالفعل
     if user is None:
         # إذا تم حذف المستخدم من قاعدة البيانات بعد إصدار التوكن، يعتبر التوكن غير صالح
         raise credentials_exception 
@@ -113,21 +104,33 @@ def has_permission(permission_key: str) -> Callable:
     يمتلك الصلاحية المطلوبة (عبر RBAC)، مع إمكانية تجاوز للمسؤولين الفائقين.
     """
     async def permission_checker(
-        current_user: User = Depends(get_current_active_user) # يعتمد على المستخدم النشط الحالي
+        current_user: User = Depends(get_current_active_user), # يعتمد على المستخدم النشط الحالي
+        db: Session = Depends(get_db) # نحتاج session للتحقق من الصلاحيات
     ) -> User:
-        # 1. التحقق من أن المستخدم لديه دور أساسي وصلاحيات محملة
-        if not current_user.default_role or not current_user.default_role.permissions:
+        # 1. التحقق من أن المستخدم لديه دور أساسي
+        if not current_user.default_role:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="المستخدم ليس لديه دور أساسي أو صلاحيات محددة."
+                detail="المستخدم ليس لديه دور أساسي."
             )
 
-        # 2. البحث مباشرة في قائمة الصلاحيات الممنوحة للدور الأساسي للمستخدم
-        # TODO: يمكن تحسين هذا للتحقق من جميع أدوار المستخدم (default_role + user_roles)
-        has_perm = any(
-            p.permission_name_key == permission_key # مقارنة مفتاح الصلاحية المطلوب
-            for p in current_user.default_role.permissions # قائمة الصلاحيات للدور الافتراضي
-        )
+        # 2. البحث في الصلاحيات - إعادة تحميل الدور مع الصلاحيات من نفس session
+        has_perm = False
+        
+        from src.users.models.roles_models import Role, RolePermission
+        from sqlalchemy.orm import selectinload, joinedload
+        
+        # إعادة تحميل الدور مع الصلاحيات من نفس session
+        role_with_perms = db.query(Role).options(
+            selectinload(Role.permission_associations).joinedload(RolePermission.permission)
+        ).filter(Role.role_id == current_user.default_role.role_id).first()
+        
+        if role_with_perms and role_with_perms.permission_associations:
+            # البحث في الصلاحيات المحملة
+            for pa in role_with_perms.permission_associations:
+                if pa.permission and pa.permission.permission_name_key == permission_key:
+                    has_perm = True
+                    break
 
         # 3. تجاوز الصلاحية للمسؤولين الفائقين (SUPER_ADMIN)
         # TODO: يجب أن يكون مفتاح الدور "SUPER_ADMIN" معرفاً كقيمة ثابتة في مكان مركزي (مثل settings).

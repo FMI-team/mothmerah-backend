@@ -3,9 +3,9 @@ from sqlalchemy import (
     Integer, String, Text, Boolean, BigInteger, SmallInteger,
     func, TIMESTAMP, text, ForeignKey
 )
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from src.db.base_class import Base
-from sqlalchemy.dialects.postgresql import UUID
 from uuid import uuid4
 from sqlalchemy import String
 

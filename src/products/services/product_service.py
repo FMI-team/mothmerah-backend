@@ -15,6 +15,7 @@ from src.products.models.products_models import Product # <-- Product من هن�
 from src.products.models.categories_models import ProductCategory # <-- ProductCategory من هنا
 from src.lookups.models.lookups_models import ProductStatus # <-- ProductStatus من هنا (Lookups العامة)
 from src.users.models.core_models import User # <-- User من هنا
+from sqlalchemy.dialects.postgresql import UUID
 
 # ==========================================================
 # --- Services for Product ---

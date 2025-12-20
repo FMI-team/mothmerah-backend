@@ -4,13 +4,12 @@ from sqlalchemy import (
     Integer, String, Text, Boolean, BigInteger, Numeric,
     func, TIMESTAMP, text, ForeignKey, CheckConstraint 
 )
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column  ,relationship 
 from typing import List, Optional
+from uuid import uuid4
 
 from src.db.base_class import Base
-
-from sqlalchemy.dialects.postgresql import UUID
-from uuid import uuid4
 
 # TODO: يمكن استيراد المودلز المرتبطة مباشرة هنا إذا لزم الأمر
 # لضمان Type Hinting صحيح في العلاقات، لكن ليس ضرورياً لعمل SQLAlchemy
@@ -22,7 +21,7 @@ class Order(Base):
     """(4.أ.1) جدول الطلبات العادية."""
     __tablename__ = 'orders'
     # order_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
-    order_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, server_default=func.now()) # Example, adjust if needed
+    order_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4) # SQLite compatible
     buyer_user_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('users.user_id'), nullable=False)
     seller_user_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('users.user_id'), nullable=True)
     order_reference_number: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)

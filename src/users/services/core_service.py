@@ -339,14 +339,19 @@ def soft_delete_user_account(db: Session, user_id: UUID, current_user: User, rea
         raise ForbiddenException(detail="غير مصرح لك بحذف هذا الحساب.")
 
     # 2. جلب حالة الحساب "المحذوف"
-    deleted_status = user_lookups_crud.get_account_status_by_key(db, key="DELETED_BY_USER") # أو "DEACTIVATED_BY_USER"
+    # محاولة استخدام DELETED_BY_USER أولاً، ثم DELETED كبديل
+    deleted_status = user_lookups_crud.get_account_status_by_key(db, key="DELETED_BY_USER")
     if not deleted_status:
-        raise ConflictException(detail="'DELETED_BY_USER' status not found in DB. Please seed default statuses.")
+        deleted_status = user_lookups_crud.get_account_status_by_key(db, key="DELETED")
+    if not deleted_status:
+        raise ConflictException(detail="'DELETED' or 'DELETED_BY_USER' status not found in DB. Please seed default statuses.")
     
     # 3. التحقق من أن الحساب ليس في حالة نهائية (is_terminal) بالفعل (إلا إذا كان المسؤول)
     if db_user.account_status.is_terminal and not any(p.permission_name_key == "ADMIN_MANAGE_USERS" for p in current_user.default_role.permissions):
         raise BadRequestException(detail=f"لا يمكن حذف الحساب في حالته النهائية: {db_user.account_status.status_name_key}.")
 
+    # حفظ الحالة القديمة قبل التحديث
+    old_account_status_id = db_user.account_status_id
 
     # 4. تحديث حقول المستخدم للحذف الناعم
     db_user.is_deleted = True
@@ -362,7 +367,7 @@ def soft_delete_user_account(db: Session, user_id: UUID, current_user: User, rea
     # 6. تسجيل التغيير في تاريخ حالة الحساب (REQ-FUN-031)
     core_crud.create_account_status_history_record(db, record_data={
         "user_id": db_user.user_id,
-        "old_account_status_id": db_user.account_status_id, # الحالة قبل التحديث
+        "old_account_status_id": old_account_status_id, # الحالة قبل التحديث
         "new_account_status_id": deleted_status.account_status_id,
         "changed_by_user_id": current_user.user_id,
         "reason_for_change": reason or "حساب تم حذفه ناعمًا بواسطة المستخدم/المسؤول."
@@ -443,3 +448,23 @@ def get_user_account_history(db: Session, user_id_to_view: UUID, requesting_user
         # لا نعتبره خطأ، قد لا يكون هناك سجل بعد
         return []
     return history
+
+
+# ==========================================================
+# --- خدمات إدارة المستخدمين للمسؤولين (Admin User Management) ---
+# ==========================================================
+
+def get_all_users(db: Session, skip: int = 0, limit: int = 100, include_deleted: bool = False) -> List[models.User]:
+    """
+    خدمة لجلب جميع المستخدمين في النظام، مع خيار لتضمين المستخدمين المحذوفين ناعمًا.
+    
+    Args:
+        db (Session): جلسة قاعدة البيانات.
+        skip (int): عدد السجلات لتخطيها (للترقيم).
+        limit (int): الحد الأقصى لعدد السجلات المراد جلبها.
+        include_deleted (bool): إذا كان True، يتم تضمين المستخدمين المحذوفين ناعمًا.
+    
+    Returns:
+        List[models.User]: قائمة بجميع المستخدمين.
+    """
+    return core_crud.get_all_users(db, skip=skip, limit=limit, include_deleted=include_deleted)

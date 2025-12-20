@@ -1,6 +1,6 @@
 # backend\src\users\crud\core_crud.py
 
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 from sqlalchemy import exists, and_
 from typing import List, Optional
 from uuid import UUID
@@ -8,6 +8,7 @@ from datetime import datetime
 
 # استيراد المودلز من Users (المجموعة 1)
 from src.users.models import core_models as models # User, UserPreference, AccountStatusHistory
+from src.users.models.roles_models import Role, RolePermission, Permission
 # استيراد Schemas
 from src.users.schemas import core_schemas as schemas # User, UserPreference, AccountStatusHistory
 
@@ -32,7 +33,12 @@ def get_user_by_id(db: Session, user_id: UUID) -> Optional[models.User]:
     يبحث عن مستخدم عن طريق الـ ID الخاص به.
     يتم تحميل بعض العلاقات الأساسية بشكل فوري لتحسين الأداء.
     """
-    return db.query(models.User).options(
+    # Convert UUID to string for SQLite compatibility if needed
+    # SQLAlchemy will handle the conversion automatically, but we ensure it's a proper UUID object
+    if not isinstance(user_id, UUID):
+        user_id = UUID(str(user_id))
+    
+    user = db.query(models.User).options(
         joinedload(models.User.account_status), # حالة الحساب
         joinedload(models.User.user_type),     # نوع المستخدم
         joinedload(models.User.default_role),  # الدور الأساسي
@@ -40,6 +46,45 @@ def get_user_by_id(db: Session, user_id: UUID) -> Optional[models.User]:
         joinedload(models.User.preferred_language) # اللغة المفضلة
         # TODO: يمكن إضافة المزيد من التحميلات الفورية حسب الحاجة (مثل Addresses, UserPreferences)
     ).filter(models.User.user_id == user_id).first()
+    
+    # Load permissions separately if role exists (to avoid SQLAlchemy string path issues)
+    if user and user.default_role:
+        # Query the role with permissions
+        role_with_perms = db.query(Role).options(
+            selectinload(Role.permission_associations).joinedload(RolePermission.permission)
+        ).filter(Role.role_id == user.default_role.role_id).first()
+        
+        if role_with_perms:
+            # Replace the role in user object with the one that has permissions loaded
+            user.default_role = role_with_perms
+    
+    return user
+
+def get_all_users(db: Session, skip: int = 0, limit: int = 100, include_deleted: bool = False) -> List[models.User]:
+    """
+    جلب قائمة بجميع المستخدمين مع تحميل العلاقات الأساسية.
+    
+    Args:
+        db (Session): جلسة قاعدة البيانات.
+        skip (int): عدد السجلات لتخطيها (للترقيم).
+        limit (int): الحد الأقصى لعدد السجلات المراد جلبها.
+        include_deleted (bool): إذا كان True، يتم تضمين المستخدمين المحذوفين ناعمًا.
+    
+    Returns:
+        List[models.User]: قائمة بجميع المستخدمين.
+    """
+    query = db.query(models.User).options(
+        joinedload(models.User.account_status), # حالة الحساب
+        joinedload(models.User.user_type),     # نوع المستخدم
+        joinedload(models.User.default_role),  # الدور الأساسي
+        joinedload(models.User.user_verification_status), # حالة التحقق
+        joinedload(models.User.preferred_language) # اللغة المفضلة
+    )
+    
+    if not include_deleted:
+        query = query.filter(models.User.is_deleted == False)
+    
+    return query.offset(skip).limit(limit).all()
 
 def create_user(db: Session, user_data: dict) -> models.User:
     """
@@ -186,6 +231,14 @@ def create_account_status_history_record(db: Session, record_data: dict) -> mode
     Returns:
         models.AccountStatusHistory: كائن سجل التاريخ الذي تم إنشاؤه.
     """
+    # توليد ID يدوياً لـ SQLite (لأن SQLite لا يدعم autoincrement مع BIGINT بشكل صحيح)
+    from sqlalchemy import func
+    db_dialect = db.get_bind().dialect.name
+    if db_dialect == 'sqlite':
+        # جلب أكبر ID موجود وإضافة 1
+        max_id = db.query(func.max(models.AccountStatusHistory.account_status_history_id)).scalar()
+        record_data['account_status_history_id'] = (max_id or 0) + 1
+    
     db_record = models.AccountStatusHistory(**record_data)
     db.add(db_record)
     db.commit() # يتم الـ commit هنا لأنها عملية تسجيل مباشر

@@ -15,7 +15,8 @@ from src.users.schemas import core_schemas as schemas # UserRead, UserUpdate
 from src.users.schemas.management_schemas import AdminUserStatusUpdate # لـ AdminUserStatusUpdate
 
 # استيراد الخدمات (منطق العمل)
-from src.users.services import core_service # لـ get_user_profile, update_user_profile, change_user_status_by_admin, get_user_account_history
+from src.users.services import core_service # لـ get_user_profile, update_user_profile, get_user_account_history
+from src.users.services import management_service # لـ change_user_status_by_admin
 
 
 # تعريف الراوتر لإدارة المستخدمين الأساسية من جانب المسؤولين.
@@ -44,11 +45,7 @@ async def get_all_users_for_admin_endpoint(
     # TODO: يمكن إضافة فلاتر للبحث (مثل phone_number, email, status_name_key, user_type_key)
 ):
     """نقطة وصول لجلب جميع المستخدمين."""
-    # يجب أن تكون دالة get_all_users في core_service موجودة وتدعم هذه الفلاتر
-    # حالياً، core_service ليس لديها دالة get_all_users
-    # TODO: يجب إضافة دالة get_all_users في core_service
-    #       وهنا استدعاؤها: return core_service.get_all_users(db=db, skip=skip, limit=limit, ...)
-    raise NotImplementedError("دالة جلب جميع المستخدمين للمسؤول لم تُنفذ بعد في core_service.")
+    return core_service.get_all_users(db=db, skip=skip, limit=limit, include_deleted=False)
 
 
 @router.get(
@@ -88,7 +85,7 @@ async def change_user_status_endpoint(
     current_user: UserModel = Depends(dependencies.get_current_active_user) # المسؤول الذي يقوم بالإجراء
 ):
     """نقطة وصول لتغيير حالة حساب المستخدم بواسطة المسؤول."""
-    return core_service.change_user_status_by_admin(db=db, target_user_id=user_id, status_data=status_data, admin_user=current_user)
+    return management_service.change_user_status_by_admin(db=db, target_user_id=user_id, status_data=status_data, admin_user=current_user)
 
 @router.delete(
     "/{user_id}",

@@ -32,6 +32,7 @@ from src.users.services.core_service import get_user_profile # للتحقق من
 from src.users.services.address_service import get_address_by_id # للتحقق من وجود عنوان التسليم
 from src.products.services.product_service import get_product_by_id_for_user # للتحقق من وجود المنتج
 from src.products.services.unit_of_measure_service import get_unit_of_measure_details # للتحقق من وحدة القياس
+from sqlalchemy.dialects.postgresql import UUID
 
 # TODO: وحدة الإشعارات - (Module 11) لإرسال الإشعارات.
 

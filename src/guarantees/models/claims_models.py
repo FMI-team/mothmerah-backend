@@ -3,11 +3,11 @@ from sqlalchemy import (
     Integer, String, Text,  BigInteger, Numeric,
     func, TIMESTAMP, text, ForeignKey#, CheckConstraint # ,Boolean , SmallInteger
 )
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.db.base_class import Base
 
-from sqlalchemy.dialects.postgresql import UUID
 from uuid import uuid4
 
 class GGClaim(Base):

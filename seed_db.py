@@ -1488,6 +1488,7 @@ def seed_all(db: Session):
         {"permission_id": 1202, "permission_name_key": "LICENSE_VIEW_OWN", "module_group": "Verification", "description": "عرض قائمة التراخيص الخاصة به"},
         {"permission_id": 1203, "permission_name_key": "LICENSE_DELETE_OWN", "module_group": "Verification", "description": "حذف ترخيص قيد المراجعة"},
         {"permission_id": 1210, "permission_name_key": "ADMIN_VERIFY_ANY_LICENSE", "module_group": "Admin: Verification", "description": "مراجعة والموافقة على أو رفض تراخيص المستخدمين"},
+        {"permission_id": 1211, "permission_name_key": "ADMIN_MANAGE_LICENSES", "module_group": "Admin: Verification", "description": "إدارة شاملة للتراخيص والتحقق (عرض، تحديث، إدارة حالات التحقق)"},
         # --- 1.د: صلاحيات إدارة العناوين ---
         {"permission_id": 1301, "permission_name_key": "ADDRESS_CREATE_OWN", "module_group": "Addresses", "description": "إضافة عنوان جديد"},
         {"permission_id": 1302, "permission_name_key": "ADDRESS_VIEW_OWN", "module_group": "Addresses", "description": "عرض قائمة عناوينه"},
@@ -1501,6 +1502,7 @@ def seed_all(db: Session):
         {"permission_id": 1501, "permission_name_key": "ADMIN_VIEW_ANY_USER", "module_group": "Admin: Users", "description": "عرض ملف أي مستخدم في النظام"},
         {"permission_id": 1502, "permission_name_key": "ADMIN_UPDATE_ANY_USER", "module_group": "Admin: Users", "description": "تحديث ملف أي مستخدم في النظام"},
         {"permission_id": 1503, "permission_name_key": "ADMIN_MANAGE_USER_STATUS", "module_group": "Admin: Users", "description": "تغيير حالة حساب أي مستخدم"},
+        {"permission_id": 1504, "permission_name_key": "ADMIN_MANAGE_USERS", "module_group": "Admin: Users", "description": "إدارة شاملة للمستخدمين (عرض، تحديث، تغيير حالة، حذف ناعم)"},
 
         # ================================================================
         # --- صلاحيات المجموعة 2: إدارة كتالوج المنتجات والمخزون NEW
@@ -1737,6 +1739,7 @@ def seed_all(db: Session):
             "LICENSE_VIEW_OWN",
             "LICENSE_DELETE_OWN",
             "ADMIN_VERIFY_ANY_LICENSE",
+            "ADMIN_MANAGE_LICENSES",
             # --- 1.د: صلاحيات إدارة العناوين ---
             "ADDRESS_CREATE_OWN",
             "ADDRESS_VIEW_OWN",
@@ -1750,6 +1753,7 @@ def seed_all(db: Session):
             "ADMIN_VIEW_ANY_USER",
             "ADMIN_UPDATE_ANY_USER",
             "ADMIN_MANAGE_USER_STATUS",
+            "ADMIN_MANAGE_USERS",
             # --- 2.أ: صلاحيات إدارة المنتجات الأساسية (للبائعين) ---
             "PRODUCT_CREATE_OWN",
             "PRODUCT_UPDATE_OWN",
