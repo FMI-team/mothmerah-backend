@@ -2,21 +2,40 @@
 
 from fastapi import APIRouter, Depends, status, HTTPException # استيراد المكونات الأساسية لـ FastAPI
 from sqlalchemy.orm import Session # لاستخدام جلسة قاعدة البيانات
-from typing import List, Optional # لتعريف أنواع البيانات في Python
+from typing import List, Optional, Dict # لتعريف أنواع البيانات في Python
 from uuid import UUID # لمعالجة معرفات المستخدمين
 
 # استيراد المكونات المشتركة للمشروع
+from src.agreements import models
 from src.db.session import get_db # للحصول على جلسة قاعدة البيانات
 from src.api.v1 import dependencies # لتبعية الصلاحيات والمستخدم الحالي
+from src.lookups.models.lookups_models import Language
 from src.users.models.core_models import User as UserModel # مودل المستخدم، لضمان User type hint
 
 # استيراد Schemas (هياكل البيانات)
 from src.users.schemas import core_schemas as schemas # UserRead, UserUpdate
-from src.users.schemas.management_schemas import AdminUserStatusUpdate # لـ AdminUserStatusUpdate
+from src.users.schemas.management_schemas import AdminUserStatusUpdate, AdminUserCreate, AdminUserCreatedResponse # لـ AdminUserStatusUpdate
 
 # استيراد الخدمات (منطق العمل)
 from src.users.services import core_service # لـ get_user_profile, update_user_profile, get_user_account_history
 from src.users.services import management_service # لـ change_user_status_by_admin
+
+from src.users.models.core_models import (
+    UserType,
+    AccountStatus,
+)
+
+from src.users.models.verification_models import (
+    UserVerificationStatus
+)
+
+from src.users.models.roles_models import (
+    Role
+)
+
+from fastapi import Body
+
+from src.users.services.admin_user_service import AdminUserService
 
 
 # تعريف الراوتر لإدارة المستخدمين الأساسية من جانب المسؤولين.
@@ -25,6 +44,34 @@ router = APIRouter(
     tags=["Admin - Core User Management"], # الوسوم التي تظهر في وثائق OpenAPI (Swagger UI)
     dependencies=[Depends(dependencies.has_permission("ADMIN_MANAGE_USERS"))] # صلاحية عامة لإدارة المستخدمين
 )
+
+# Fetch refrence data to create a new user
+@router.get(
+    "/reference-data",
+    summary="[Admin] Fetch reference data for user creation",
+    response_model=Dict[str, List[dict]],
+)
+async def get_reference_data(db: Session = Depends(get_db)):
+    try:
+        return {
+            "user_types": [{"id": u.user_type_id, "name": u.user_type_name_key} for u in db.query(UserType).all()],
+            "account_statuses": [{"id": a.account_status_id, "name": a.status_name_key} for a in db.query(AccountStatus).all()],
+            "roles": [{"id": r.role_id, "name": r.role_name_key} for r in db.query(Role).all()],
+            "verification_statuses": [{"id": v.user_verification_status_id, "name": v.status_name_key} for v in db.query(UserVerificationStatus).all()],
+            "languages": [
+                {
+                    "code": l.language_code,
+                    "name_native": l.language_name_native,
+                    "name_en": l.language_name_en,
+                    "text_direction": l.text_direction
+                } for l in db.query(Language).all()
+            ]
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to fetch reference data: {str(e)}"
+        )
 
 # ================================================================
 # --- نقاط الوصول لإدارة المستخدمين الأساسية (Core User Management) ---
@@ -121,3 +168,37 @@ async def get_user_account_history_endpoint(
 ):
     """نقطة وصول لجلب سجل تغييرات حالة حساب المستخدم."""
     return core_service.get_user_account_history(db=db, user_id_to_view=user_id, requesting_user=current_user)
+
+  
+@router.post(
+    "/create",
+    response_model=AdminUserCreatedResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="[Admin] Create a new user",
+    description="""
+    Allows administrators to create a new user in the system. 
+    If no password is provided, a secure temporary password will be generated automatically.
+    The new user can have default roles and preferred language settings.
+    """,
+)
+async def create_admin_user_endpoint(
+    user_data: AdminUserCreate = Body(..., description="User creation payload"),
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(dependencies.get_current_active_user)
+):
+    """
+    Endpoint for administrators to create a new user.
+
+    Args:
+        user_data (AdminUserCreate): User creation data
+        db (Session): Database session
+        current_user (UserModel): Admin user performing the action
+
+    Returns:
+        AdminUserCreatedResponse: Details of the created user including temporary password if generated
+    """
+    return AdminUserService.create_user_by_admin(
+        db=db,
+        user_data=user_data,
+        created_by_admin_id=current_user.user_id
+    )
